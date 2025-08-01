@@ -1,0 +1,76 @@
+---
+title: "Transforming Data"
+format: html
+author: Sruthi Gandhi
+execute: 
+  echo: false
+---
+
+
+```{r}
+#| message: false
+library(tidyverse)
+library(nycflights13)
+```
+
+```{r}
+flights |>
+  mutate(tailnum_num = parse_number(tailnum)) |> 
+  select(tailnum_num)
+```
+
+```{r}
+
+flights_clean <- flights |>
+  select(dep_time:dep_delay)
+flights_clean
+
+```
+
+
+```{r}
+x <- flights_clean |>
+  mutate(
+    sched_hour = sched_dep_time %/% 100,
+    sched_minute = sched_dep_time %% 100,
+    dep_hour = dep_time %/% 100,
+    dep_minute = dep_time %% 100) |>
+      mutate(true_dep_delay = pmax(dep_delay, 0)) |>
+        count(sched_hour, dep_hour, wt = true_dep_delay, name = "total_delay")
+```
+
+```{r}
+x %>%
+  ggplot(aes(x = sched_hour, y = dep_hour, fill = total_delay)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(option = "C", trans = "log10") +
+  labs(
+    title = "Where Do Departure Delays Cluster?",
+    subtitle = "Heatmap of total minutes of positive delay by scheduled vs. actual departure hour",
+    caption = "Source: nycflights13 dataset",
+    x = "Scheduled Departure Hour",
+    y = "Actual Departure Hour"
+  ) +
+  theme_minimal()
+
+```
+
+```{r}
+x %>%
+  mutate(total_delay = round(total_delay, -2))
+x %>%
+  mutate(rank_total_delay = min_rank(desc(total_delay)))
+y <- flights_clean |>
+  mutate(
+    sched_hour = sched_dep_time %/% 100,
+    sched_minute = sched_dep_time %% 100,
+    dep_hour = dep_time %/% 100,
+    dep_minute = dep_time %% 100) |>
+      mutate(true_dep_delay = pmax(dep_delay, 0))
+y %>%
+  summarize(
+    mean_delay = mean(true_dep_delay, na.rm = TRUE),
+    median_delay = median(true_dep_delay, na.rm = TRUE),
+    p95_delay = quantile(true_dep_delay, 0.95, na.rm = TRUE)
+  )
+```
